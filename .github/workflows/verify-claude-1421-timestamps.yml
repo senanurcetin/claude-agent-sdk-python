@@ -1,0 +1,32 @@
+name: Verify Claude SDK session timestamps (offline)
+on:
+  push:
+    branches:
+      - verify/claude-1421-timestamp-ci-20261021
+permissions:
+  contents: read
+jobs:
+  timestamp-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install SDK and dev test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Test local session timestamps, summaries and session listings
+        run: python -m pytest -q tests/test_session_timestamp_timezone.py tests/test_session_summary.py tests/test_sessions.py --disable-warnings --maxfail=1
+      - name: Ruff check changed implementation and tests
+        if: always()
+        run: python -m ruff check src/claude_agent_sdk/_internal/session_summary.py src/claude_agent_sdk/_internal/sessions.py tests/test_session_timestamp_timezone.py
+      - name: Mypy modified SDK implementation
+        if: always()
+        run: python -m mypy src/claude_agent_sdk/_internal/session_summary.py src/claude_agent_sdk/_internal/sessions.py
